@@ -4,6 +4,7 @@ import { StyleSheet, View, Dimensions, Text, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons'; // For icons
 import * as Location from 'expo-location'; // For Expo projects
+import { useNavigation } from '@react-navigation/native';
 
 export default function MapPage() {
   const mapRef = useRef(null); // Reference to the map
@@ -11,6 +12,8 @@ export default function MapPage() {
   const [mapType, setMapType] = useState('standard'); // State to manage map type
   const [isLoading, setIsLoading] = useState(true); // State to manage loading indicator
   const [isMapTypeModalVisible, setIsMapTypeModalVisible] = useState(false); // State to manage map type modal
+  const [dangerButtonOpacity, setDangerButtonOpacity] = useState(0.5);
+  const navigation = useNavigation();
 
   // Get the user's current location
   const getUserLocation = async () => {
@@ -163,6 +166,19 @@ export default function MapPage() {
           </View>
         </View>
       </Modal>
+      {/* Danger Button */}
+<TouchableOpacity
+  style={[
+    styles.dangerButton,
+    { opacity: dangerButtonOpacity }
+  ]}
+  onPress={() => navigation.navigate('ReportPage')}
+  onPressIn={() => setDangerButtonOpacity(1)}
+  onPressOut={() => setDangerButtonOpacity(0.5)}
+  activeOpacity={1}
+>
+  <Text style={styles.dangerButtonText}>DANGER</Text>
+</TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -258,5 +274,21 @@ const styles = StyleSheet.create({
   modalCloseButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  dangerButton: {
+    position: 'absolute',
+    bottom: 24,
+    left: 24,
+    right: 24,
+    backgroundColor: 'red',
+    padding:8,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dangerButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
   },
 });
