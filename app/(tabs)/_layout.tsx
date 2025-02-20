@@ -1,9 +1,10 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -19,54 +20,114 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-          },
+          ios: { position: 'absolute' },
           default: {},
         }),
+        tabBarLabelStyle: styles.tabBarLabel, // Center the text
+        tabBarIconStyle: styles.tabBarIcon, // Center the icon
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <Ionicons
+                name={focused ? 'home' : 'home-outline'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
         }}
       />
       <Tabs.Screen
         name="LoginScreen"
         options={{
           title: 'Login',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <MaterialIcons
+                name={focused ? 'login' : 'logout'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
         }}
       />
       <Tabs.Screen
         name="ForgetPass"
         options={{
-          title: 'ForgetPassword',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="Profilepage"
-        options={{
-          title: 'ProfilePage',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Forgot Password',
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <Ionicons
+                name={focused ? 'lock-closed' : 'lock-closed-outline'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
         }}
       />
       <Tabs.Screen
         name="MapPage"
         options={{
           title: 'Map',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <FontAwesome
+                name={focused ? 'map' : 'map-o'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
         }}
       />
       <Tabs.Screen
-        name="ChatPage"
+        name="chat"
         options={{
           title: 'Chat',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <Ionicons
+                name={focused ? 'chatbubbles' : 'chatbubbles-outline'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Profilepage"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <Ionicons
+                name={focused ? 'person' : 'person-outline'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: Platform.select({ ios: 0, android: 2 }), // Adjust for platform
+  },
+  tabBarIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
