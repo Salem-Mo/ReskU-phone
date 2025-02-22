@@ -158,7 +158,7 @@ const LoginScreen = () => {
     try {
       await login(email, password);
       if (isAuthenticated) {
-        navigation.navigate('Profilepage');
+        navigation.navigate('');
       }
     } catch (err) {
       console.error('Login failed:', err);
@@ -185,6 +185,9 @@ const LoginScreen = () => {
           value={password}
           onChangeText={setPassword}
         />
+          <TouchableOpacity onPress={() => navigation.navigate('ForgetPass')}>
+          <Text style={styles.backLink}>Don't have account yet?</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('ForgetPass')}>
           <Text style={styles.backLink}>Forgot your Password?</Text>
         </TouchableOpacity>
