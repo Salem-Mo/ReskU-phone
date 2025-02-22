@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons,MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -34,6 +34,21 @@ export default function TabLayout() {
             <Animated.View entering={FadeIn} exiting={FadeOut}>
               <Ionicons
                 name={focused ? 'home' : 'home-outline'}
+                size={24}
+                color={color}
+              />
+            </Animated.View>
+          ),
+        }}
+      />
+            <Tabs.Screen
+        name="SignupPage"
+        options={{
+          title: 'Login',
+          tabBarIcon: ({ color, focused }) => (
+            <Animated.View entering={FadeIn} exiting={FadeOut}>
+              <MaterialCommunityIcons
+                name={focused ? 'account-arrow-up-outline' : 'account-cancel-outline'}
                 size={24}
                 color={color}
               />

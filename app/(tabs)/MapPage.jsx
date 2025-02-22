@@ -277,18 +277,20 @@
 //     fontWeight: 'bold',
 //   },
 // });
+
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Dimensions, 
-  Text, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Modal, 
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
   TextInput,
   ScrollView,
-  Image
+  Dimensions,
+  Image,
+  Linking,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -296,73 +298,81 @@ import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import axios from 'axios';
 import Slider from '@react-native-community/slider';
-import { useAuth } from '@/context/AuthContext'; // Adjust your auth context path
+import { useAuth } from '@/context/AuthContext';
 
 const ServerUrl = 'https://resku-backend-production.up.railway.app';
+const { width, height } = Dimensions.get('window');
 
-export default function MapPage() {
+// Color palette
+const COLORS = {
+  primary: '#6200ee',
+  secondary: '#03dac6',
+  background: '#ffffff',
+  text: '#2d3436',
+  error: '#dc3545',
+  success: '#28a745',
+  warning: '#ffc107',
+};
+
+const amenityIcons = {
+  hospital: require('@/assets/hospital.png'),
+  clinic: require('../../assets/clinic.png'),
+  fuel: require('../../assets/fuel.png'),
+  police: require('../../assets/police.png'),
+  fire_station: require('../../assets/fire_station.png'),
+  telephone: require('../../assets/telephone.png'),
+  vehicle_inspection: require('../../assets/vehicle_inspection.png'),
+  pharmacy: require('../../assets/pharmacy.png'),
+};
+
+const MapPage = () => {
   const { user } = useAuth();
   const mapRef = useRef(null);
-  const [state, setState] = useState({
-    userLocation: null,
-    pins: [],
-    services: [],
-    newPlace: null,
-    selectedPin: null,
-    selectedService: null,
-    showActionSheet: false,
-    showPinForm: false,
-    showServicesOptions: false,
-    servicesType: 'hospital',
-    dangerRating: 1,
-    type: 'report',
+  const [userLocation, setUserLocation] = useState(null);
+  const [pins, setPins] = useState([]);
+  const [services, setServices] = useState([]);
+  const [selectedPin, setSelectedPin] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [showServicesOptions, setShowServicesOptions] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newPlace, setNewPlace] = useState(null);
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    isLoading: true,
+    type: 'report',
+    dangerRating: 1,
+    servicesType: 'hospital',
   });
-
-  const amenityIcons = {
-    hospital: require('../../assets/hospital.png'),
-    clinic: require('../../assets/clinic.png'),
-    fuel: require('../../assets/fuel.png'),
-    police: require('../../assets/police.png'),
-    fire_station: require('../../assets/fire_station.png'),
-    telephone: require('../../assets/telephone.png'),
-    vehicle_inspection: require('../../assets/vehicle_inspection.png'),
-    pharmacy: require('../../assets/pharmacy.png'),
-  };
+  const [showServiceDetails, setShowServiceDetails] = useState(false);
 
   useEffect(() => {
-    getLocationAndPins();
+    initializeMap();
   }, []);
 
-  const getLocationAndPins = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('Permission denied');
-      setState(prev => ({ ...prev, isLoading: false }));
-      return;
-    }
+  const initializeMap = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') throw new Error('Permission denied');
 
-    const location = await Location.getCurrentPositionAsync({});
-    const { latitude, longitude } = location.coords;
-    
-    setState(prev => ({
-      ...prev,
-      userLocation: { latitude, longitude },
-      isLoading: false
-    }));
-    
-    focusOnLocation(latitude, longitude);
-    fetchPins();
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation(location.coords);
+      focusOnLocation(location.coords.latitude, location.coords.longitude);
+      await fetchPins();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchPins = async () => {
     try {
-      const res = await axios.get(`${ServerUrl}/api/pins`);
-      setState(prev => ({ ...prev, pins: res.data }));
-    } catch (err) {
-      console.log(err);
+      const { data } = await axios.get(`${ServerUrl}/api/pins`);
+      setPins(data);
+    } catch (error) {
+      console.error('Failed to fetch pins:', error);
     }
   };
 
@@ -375,70 +385,87 @@ export default function MapPage() {
     });
   };
 
-  const handleMapLongPress = (e) => {
-    setState(prev => ({
-      ...prev,
-      newPlace: e.nativeEvent.coordinate,
-      showPinForm: true
-    }));
+  const handleMapLongPress = ({ nativeEvent }) => {
+    setNewPlace(nativeEvent.coordinate);
+    setShowPinForm(true);
   };
 
   const submitPin = async () => {
     try {
-      const newPin = {
+      await axios.post(`${ServerUrl}/api/pins`, {
+        ...formData,
         userName: user.name,
         userEmail: user.email,
-        title: state.title,
-        description: state.description,
-        dangerRate: state.dangerRating,
-        type: state.type,
-        lat: state.newPlace.latitude,
-        long: state.newPlace.longitude,
-      };
-
-      await axios.post(`${ServerUrl}/api/pins`, newPin);
-      fetchPins();
+        lat: newPlace.latitude,
+        long: newPlace.longitude,
+      });
+      await fetchPins();
       closeModals();
-    } catch (err) {
-      console.log(err);
+    } catch (error) {
+      console.error('Failed to submit pin:', error);
     }
   };
 
   const fetchServices = async () => {
+    if (!userLocation) return;
+
     try {
-      const { latitude, longitude } = state.userLocation;
-      const response = await axios.get(
-        `https://overpass-api.de/api/interpreter?data=[out:json];node["amenity"=${state.servicesType}](${latitude-0.3},${longitude-0.3},${latitude+0.3},${longitude+0.3});out body;`
+      const { data } = await axios.get(
+        `https://overpass-api.de/api/interpreter?data=[out:json];node["amenity"=${formData.servicesType}](${userLocation.latitude - 0.3},${userLocation.longitude - 0.3},${userLocation.latitude + 0.3},${userLocation.longitude + 0.3});out body;`
       );
-      setState(prev => ({ ...prev, services: response.data.elements }));
+      setServices(data.elements);
     } catch (error) {
-      console.error("Error fetching services:", error);
+      console.error('Error fetching services:', error);
     }
   };
 
   const openGoogleMaps = (lat, lng) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    Linking.openURL(url).catch(err => console.error("Error opening maps:", err));
+    Linking.openURL(url);
   };
 
   const closeModals = () => {
-    setState(prev => ({
-      ...prev,
-      showPinForm: false,
-      selectedPin: null,
-      selectedService: null,
-      showServicesOptions: false,
-      newPlace: null,
+    setShowPinForm(false);
+    setShowServicesOptions(false);
+    setSelectedPin(null);
+    setSelectedService(null);
+    setNewPlace(null);
+    setShowServiceDetails(false);
+    setFormData({
       title: '',
       description: '',
-    }));
+      type: 'report',
+      dangerRating: 1,
+      servicesType: 'hospital',
+    });
   };
 
-  const renderMarkerIcon = (type, userEmail) => {
-    const isCurrentUser = user?.email === userEmail;
-    if (isCurrentUser) return 'green';
-    return type === 'report' ? 'red' : 'blue';
+  const renderMarkerColor = (type, userEmail) => {
+    return user?.email === userEmail
+      ? COLORS.success
+      : type === 'report'
+      ? COLORS.error
+      : COLORS.primary;
   };
+
+  const ServiceOption = ({ type }) => (
+    <TouchableOpacity
+      style={[
+        styles.serviceOption,
+        formData.servicesType === type && styles.selectedService,
+      ]}
+      onPress={() => {
+        setFormData((p) => ({ ...p, servicesType: type }));
+        fetchServices();
+        setShowServicesOptions(false); // Close the menu after selection
+      }}
+    >
+      <Image source={amenityIcons[type]} style={styles.serviceIcon} />
+      <Text style={styles.serviceLabel}>
+        {type.replace('_', ' ').toLowerCase()}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -448,31 +475,30 @@ export default function MapPage() {
         provider={PROVIDER_GOOGLE}
         showsUserLocation
         onLongPress={handleMapLongPress}
-        initialRegion={state.userLocation ? {
-          ...state.userLocation,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        } : null}
+        initialRegion={userLocation}
       >
-        {state.pins.map((pin, index) => (
+        {pins.map((pin, index) => (
           <Marker
             key={`pin-${index}`}
             coordinate={{ latitude: pin.lat, longitude: pin.long }}
-            onPress={() => setState(prev => ({ ...prev, selectedPin: pin }))}
+            onPress={() => setSelectedPin(pin)}
           >
-            <MaterialIcons 
-              name="location-on" 
-              size={30} 
-              color={renderMarkerIcon(pin.type, pin.userEmail)} 
+            <MaterialIcons
+              name="location-on"
+              size={34}
+              color={renderMarkerColor(pin.type, pin.userEmail)}
             />
           </Marker>
         ))}
 
-        {state.services.map((service, index) => (
+        {services.map((service, index) => (
           <Marker
             key={`service-${index}`}
             coordinate={{ latitude: service.lat, longitude: service.lon }}
-            onPress={() => setState(prev => ({ ...prev, selectedService: service }))}
+            onPress={() => {
+              setSelectedService(service);
+              setShowServiceDetails(true);
+            }}
           >
             <Image
               source={amenityIcons[service.tags.amenity]}
@@ -480,226 +506,415 @@ export default function MapPage() {
             />
           </Marker>
         ))}
+
+        {newPlace && (
+          <Marker coordinate={newPlace}>
+            <MaterialIcons name="location-pin" size={40} color={COLORS.warning} />
+          </Marker>
+        )}
       </MapView>
 
-      {/* Action Buttons */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => setState(prev => ({ ...prev, showActionSheet: !prev.showActionSheet }))}
+      {/* Action Controls */}
+      <View style={styles.controls}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => setShowActionSheet(!showActionSheet)}
         >
-          <MaterialIcons name="menu" size={24} color="white" />
+          <MaterialIcons
+            name={showActionSheet ? 'close' : 'menu'}
+            size={24}
+            color="white"
+          />
         </TouchableOpacity>
 
-        {state.showActionSheet && (
+        {showActionSheet && (
           <View style={styles.actionSheet}>
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => {
-                setState(prev => ({ ...prev, showServicesOptions: true }));
+                setShowServicesOptions(true);
                 fetchServices();
+                setShowActionSheet(false);
               }}
             >
-              <MaterialIcons name="local-hospital" size={24} color="black" />
-              <Text>Find Services</Text>
+              <MaterialIcons name="local-hospital" size={24} color={COLORS.primary} />
+              <Text style={styles.actionText}>Find Services</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => focusOnLocation(state.userLocation.latitude, state.userLocation.longitude)}
+              onPress={() => {
+                focusOnLocation(userLocation.latitude, userLocation.longitude);
+                setShowActionSheet(false);
+              }}
             >
-              <MaterialIcons name="my-location" size={24} color="black" />
-              <Text>My Location</Text>
+              <MaterialIcons name="my-location" size={24} color={COLORS.primary} />
+              <Text style={styles.actionText}>My Location</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      {/* Modals */}
-      <Modal visible={state.showPinForm} animationType="slide">
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add New Pin</Text>
-          
+      {/* Pin Form Modal */}
+      <Modal visible={showPinForm} animationType="slide">
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Create New Marker</Text>
+
           <TextInput
             style={styles.input}
-            placeholder="Title"
-            value={state.title}
-            onChangeText={text => setState(prev => ({ ...prev, title: text }))}
+            placeholder="Title *"
+            placeholderTextColor="#666"
+            value={formData.title}
+            onChangeText={(text) => setFormData((p) => ({ ...p, title: text }))}
           />
-          
+
           <TextInput
             style={[styles.input, styles.multilineInput]}
             placeholder="Description"
+            placeholderTextColor="#666"
             multiline
-            value={state.description}
-            onChangeText={text => setState(prev => ({ ...prev, description: text }))}
+            value={formData.description}
+            onChangeText={(text) => setFormData((p) => ({ ...p, description: text }))}
           />
 
-          <Text>Type:</Text>
-          <View style={styles.radioGroup}>
+          <View style={styles.typeSelector}>
             <TouchableOpacity
-              style={[styles.radioButton, state.type === 'report' && styles.radioSelected]}
-              onPress={() => setState(prev => ({ ...prev, type: 'report' }))}
+              style={[
+                styles.typeButton,
+                formData.type === 'report' && styles.activeType,
+              ]}
+              onPress={() => setFormData((p) => ({ ...p, type: 'report' }))}
             >
-              <Text>Report</Text>
+              <Text style={styles.typeText}>🚨 Report</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.radioButton, state.type === 'request' && styles.radioSelected]}
-              onPress={() => setState(prev => ({ ...prev, type: 'request' }))}
+              style={[
+                styles.typeButton,
+                formData.type === 'request' && styles.activeType,
+              ]}
+              onPress={() => setFormData((p) => ({ ...p, type: 'request' }))}
             >
-              <Text>Request</Text>
+              <Text style={styles.typeText}>🆘 Request</Text>
             </TouchableOpacity>
           </View>
 
-          <Text>Danger Rating: {state.dangerRating}</Text>
-          <Slider
-            minimumValue={1}
-            maximumValue={5}
-            step={1}
-            value={state.dangerRating}
-            onValueChange={value => setState(prev => ({ ...prev, dangerRating: value }))}
-          />
+          <View style={styles.sliderContainer}>
+            <Text style={styles.sliderLabel}>
+              Priority Level: {Array(formData.dangerRating).fill('⭐').join('')}
+            </Text>
+            <Slider
+              minimumValue={1}
+              maximumValue={5}
+              step={1}
+              value={formData.dangerRating}
+              onValueChange={(value) =>
+                setFormData((p) => ({ ...p, dangerRating: value }))
+              }
+              minimumTrackTintColor={COLORS.warning}
+              maximumTrackTintColor="#d3d3d3"
+              thumbTintColor={COLORS.warning}
+            />
+          </View>
 
-          <TouchableOpacity style={styles.submitButton} onPress={submitPin}>
-            <Text style={styles.buttonText}>Submit</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.closeButton} onPress={closeModals}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity style={styles.cancelButton} onPress={closeModals}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitButton} onPress={submitPin}>
+              <Text style={styles.buttonText}>Create Marker</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
-      {/* Selected Pin Modal */}
-      {state.selectedPin && (
-        <View style={styles.bottomSheet}>
-          <Text style={styles.sheetTitle}>{state.selectedPin.title}</Text>
-          <Text>{state.selectedPin.description}</Text>
-          <TouchableOpacity 
-            style={styles.navigateButton}
-            onPress={() => openGoogleMaps(state.selectedPin.lat, state.selectedPin.long)}
-          >
-            <Text>Navigate</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.closeButton} onPress={closeModals}>
-            <Text>Close</Text>
-          </TouchableOpacity>
+      {/* Service Selection Modal */}
+      <Modal visible={showServicesOptions} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Service Type</Text>
+            <ScrollView contentContainerStyle={styles.servicesGrid}>
+              {Object.keys(amenityIcons).map((type) => (
+                <ServiceOption key={type} type={type} />
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.closeButton} onPress={closeModals}>
+              <Text style={styles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Selected Pin Details */}
+      {selectedPin && (
+        <View style={styles.detailsSheet}>
+          <Text style={styles.sheetTitle}>{selectedPin.title}</Text>
+          <Text style={styles.sheetDescription}>{selectedPin.description}</Text>
+          <View style={styles.sheetActions}>
+            <TouchableOpacity
+              style={styles.navigateButton}
+              onPress={() => openGoogleMaps(selectedPin.lat, selectedPin.long)}
+            >
+              <Text style={styles.navigateText}>🗺️ Get Directions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.closeDetails} onPress={closeModals}>
+              <MaterialIcons name="close" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
-      {/* Services Options Modal */}
-      <Modal visible={state.showServicesOptions} animationType="slide">
-        <ScrollView contentContainerStyle={styles.servicesModal}>
-          {Object.keys(amenityIcons).map((serviceType) => (
-            <TouchableOpacity
-              key={serviceType}
-              style={styles.serviceOption}
-              onPress={() => {
-                setState(prev => ({ ...prev, servicesType: serviceType }));
-                fetchServices();
-              }}
-            >
-              <Image source={amenityIcons[serviceType]} style={styles.serviceOptionIcon} />
-              <Text>{serviceType.replace('_', ' ').toUpperCase()}</Text>
+      {/* Service Details Modal */}
+      <Modal visible={showServiceDetails} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{selectedService?.tags?.name || 'Service Details'}</Text>
+            <Text style={styles.sheetDescription}>
+              {selectedService?.tags?.amenity || 'No additional information available.'}
+            </Text>
+            <TouchableOpacity style={styles.closeButton} onPress={closeModals}>
+              <Text style={styles.buttonText}>Close</Text>
             </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={styles.closeButton} onPress={closeModals}>
-            <Text>Close</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          </View>
+        </View>
       </Modal>
 
-      {state.isLoading && (
+      {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#0000ff" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Initializing Map...</Text>
         </View>
       )}
     </SafeAreaView>
   );
-}
+};
 
-// Add appropriate styles for the new components
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   map: {
     width: '100%',
     height: '100%',
   },
-  actionBar: {
+  controls: {
     position: 'absolute',
-    top: 20,
+    top: 40,
     right: 20,
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  actionButton: {
-    backgroundColor: '#6200ee',
+  mainButton: {
+    backgroundColor: COLORS.primary,
     padding: 15,
     borderRadius: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   actionSheet: {
     position: 'absolute',
     right: 0,
     top: 60,
-    backgroundColor: 'white',
-    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: 15,
+    padding: 15,
+    elevation: 5,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     padding: 10,
+  },
+  actionText: {
+    color: COLORS.text,
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    padding: 25,
+    width: '90%',
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 5,
   },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
   input: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 15,
+    fontSize: 16,
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
+    borderColor: '#e9ecef',
   },
   multilineInput: {
     height: 100,
+    textAlignVertical: 'top',
   },
-  radioGroup: {
+  typeSelector: {
     flexDirection: 'row',
-    marginVertical: 10,
+    gap: 10,
+    marginVertical: 15,
   },
-  radioButton: {
-    padding: 10,
-    marginRight: 10,
-    borderWidth: 1,
-    borderRadius: 5,
+  typeButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#e9ecef',
+    alignItems: 'center',
   },
-  radioSelected: {
-    backgroundColor: '#e0e0e0',
+  activeType: {
+    backgroundColor: COLORS.primary,
+  },
+  typeText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  sliderContainer: {
+    marginVertical: 15,
+  },
+  sliderLabel: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
   },
   submitButton: {
-    backgroundColor: 'green',
+    flex: 1,
+    backgroundColor: COLORS.primary,
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
-    marginVertical: 10,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: COLORS.error,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: COLORS.background,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 15,
+    padding: 20,
+  },
+  serviceOption: {
+    width: '45%',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 15,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    margin: 8,
+  },
+  selectedService: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#e3f2fd',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  serviceIcon: {
+    width: 50,
+    height: 50,
+    marginBottom: 10,
+  },
+  serviceLabel: {
+    color: COLORS.text,
+    fontSize: 14,
+    textTransform: 'capitalize',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   closeButton: {
-    backgroundColor: 'red',
+    backgroundColor: COLORS.primary,
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
+    marginTop: 15,
   },
-  bottomSheet: {
+  detailsSheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    elevation: 5,
+    backgroundColor: COLORS.background,
+    padding: 25,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    elevation: 10,
   },
-  serviceIcon: {
-    width: 25,
-    height: 25,
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 10,
   },
-  // Add more styles as needed
+  sheetDescription: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  navigateButton: {
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+  },
+  navigateText: {
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: COLORS.text,
+  },
 });
+
+export default MapPage;
