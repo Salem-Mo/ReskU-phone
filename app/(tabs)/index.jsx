@@ -7,14 +7,9 @@ export default function HomeScreen() {
     <ScrollView style={styles.container}>
       {/* Hero Section */}
       <View style={styles.hero}>
-        <Text style={styles.title}>Turn Bystanders into Lifesavers</Text>
-        <Text style={styles.subtitle}>Join Our Emergency Response Network</Text>
-        <Image 
-          source={require('../../assets/images/photo.png')} // Replace with your hero image
-          style={styles.heroImage}
-        />
+
         <TouchableOpacity style={styles.ctaButton}>
-          <Text style={styles.ctaText}>Download Now</Text>
+          <Text style={styles.ctaText}>Emergency</Text>
         </TouchableOpacity>
       </View>
 
@@ -60,7 +55,11 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Three Steps to Save Lives</Text>
         <View style={styles.stepsContainer}>
-          {['1. Request Help', '2. Connect Instantly', '3. Get Assistance'].map((step, index) => (
+          {[
+            '1. Request Help',
+          '2. Connect Instantly',
+          '3. Get Assistance'
+        ].map((step, index) => (
             <View key={index} style={styles.stepCard}>
               <Text style={styles.stepNumber}>0{index + 1}</Text>
               <Text style={styles.stepText}>{step}</Text>
@@ -102,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   hero: {
-    padding: 20,
+    padding: 30,
     alignItems: 'center',
     backgroundColor: '#2c3e50',
     paddingBottom: 40,
@@ -129,14 +128,16 @@ const styles = StyleSheet.create({
   ctaButton: {
     backgroundColor: '#e74c3c',
     padding: 15,
-    borderRadius: 25,
-    width: '80%',
+    borderRadius: "50%",
+    height:"200",
+    width: '200',
     alignItems: 'center',
   },
   ctaText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 24,
+    marginTop: 55,
   },
   section: {
     padding: 20,

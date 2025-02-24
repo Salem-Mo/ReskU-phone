@@ -278,6 +278,9 @@
 //   },
 // });
 
+
+
+
 import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
@@ -476,6 +479,7 @@ const MapPage = () => {
         showsUserLocation
         onLongPress={handleMapLongPress}
         initialRegion={userLocation}
+        mapType='hybrid'
       >
         {pins.map((pin, index) => (
           <Marker
@@ -539,17 +543,6 @@ const MapPage = () => {
             >
               <MaterialIcons name="local-hospital" size={24} color={COLORS.primary} />
               <Text style={styles.actionText}>Find Services</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => {
-                focusOnLocation(userLocation.latitude, userLocation.longitude);
-                setShowActionSheet(false);
-              }}
-            >
-              <MaterialIcons name="my-location" size={24} color={COLORS.primary} />
-              <Text style={styles.actionText}>My Location</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -700,7 +693,7 @@ const styles = StyleSheet.create({
   controls: {
     position: 'absolute',
     top: 40,
-    right: 20,
+    left: 20,
     zIndex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -718,12 +711,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   actionSheet: {
-    position: 'absolute',
-    right: 0,
-    top: 60,
+    left:0,
+    top: 10,
+    padding:10,
     backgroundColor: COLORS.background,
     borderRadius: 15,
-    padding: 15,
     elevation: 5,
     gap: 10,
     shadowColor: '#000',
@@ -735,7 +727,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 10,
+    margin:10,
+    padding: 3,
   },
   actionText: {
     color: COLORS.text,
